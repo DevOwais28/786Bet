@@ -1,34 +1,33 @@
 import { Link } from "wouter";
-import { Wallet, Gamepad2, Users, LayoutDashboard } from 'lucide-react';
+import { Users, CreditCard, Gamepad2, Settings } from 'lucide-react';
 
-interface DashboardSidebarProps {
+interface AdminSidebarProps {
   activeSection: string;
   setActiveSection: (section: string) => void;
 }
 
-const menuItems = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'wallet', label: 'Wallet', icon: Wallet },
-  { id: 'history', label: 'Game History', icon: Gamepad2 },
-  { id: 'referrals', label: 'Referrals', icon: Users },
+const adminMenuItems = [
+  { id: 'users', label: 'User Management', icon: Users },
+  { id: 'withdrawals', label: 'Withdrawals', icon: CreditCard },
+  { id: 'game-control', label: 'Game Control', icon: Settings },
 ];
 
-export default function DashboardSidebar({ activeSection, setActiveSection }: DashboardSidebarProps) {
+export default function AdminSidebar({ activeSection, setActiveSection }: AdminSidebarProps) {
   return (
     <div className="h-full bg-gray-900 text-white p-4 sm:p-6 flex flex-col">
       <div className="mb-8 sm:mb-12">
         <Link href="/">
-          <span className="text-2xl sm:text-3xl font-bold text-yellow-400 cursor-pointer">786Bet</span>
+          <span className="text-2xl sm:text-3xl font-bold text-red-500 cursor-pointer">Admin Panel</span>
         </Link>
       </div>
       <nav className="flex-1 space-y-2">
-        {menuItems.map((item) => (
+        {adminMenuItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveSection(item.id)}
             className={`w-full flex items-center space-x-3 px-3 sm:px-4 py-3 rounded-lg transition-all duration-200 text-sm sm:text-base font-medium ${ 
               activeSection === item.id
-                ? 'bg-yellow-400/10 text-yellow-400 shadow-inner shadow-yellow-400/10'
+                ? 'bg-red-500/10 text-red-500 shadow-inner shadow-red-500/10'
                 : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'
             }`}>
             <item.icon className="w-5 h-5" />
@@ -37,9 +36,9 @@ export default function DashboardSidebar({ activeSection, setActiveSection }: Da
         ))}
       </nav>
       <div className="mt-auto">
-        <Link href="/game-room">
-          <button className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity">
-            Play Now
+        <Link href="/dashboard">
+          <button className="w-full bg-gradient-to-r from-gray-600 to-gray-800 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity">
+            Go to Dashboard
           </button>
         </Link>
       </div>

@@ -1,214 +1,165 @@
-import { useState } from "react";
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import AdminSidebar from "@/components/admin/admin-sidebar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { toast } from "sonner";
+import { api } from "@/utils/api";
+import { Ban, Check, X, Settings, Users, CreditCard, Menu } from 'lucide-react';
 
 interface User {
   id: string;
   username: string;
   email: string;
   balance: number;
-  status: string;
+  isBanned: boolean;
   createdAt: string;
 }
 
 interface Withdrawal {
   id: string;
+  userId: string;
   amount: number;
-  status: string;
+  walletAddress: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt: string;
+  user: {
+    username: string;
+  };
 }
 
 interface GameSettings {
-  aviatorRtp: string;
-  maxMultiplier: number;
-  minBet: string;
-  maxBet: string;
-  referrerBonus: string;
-  refereeBonus: string;
-  minDepositForBonus: string;
-  referralActive: boolean;
+  crashPoint: number;
+  multiplier: number;
 }
+
+const AdminSidebar = ({ activeSection, setActiveSection }: {
+  activeSection: string;
+  setActiveSection: (section: string) => void;
+}) => (
+  <div className="w-64 h-full bg-gray-800 text-white p-4 flex flex-col flex-shrink-0">
+    <h1 className="text-2xl font-bold text-yellow-500 mb-8">Admin Panel</h1>
+    <nav className="flex-1 space-y-2">
+      <button 
+        onClick={() => setActiveSection('users')} 
+        className={`w-full text-left flex items-center space-x-3 p-3 rounded-lg transition-colors ${
+          activeSection === 'users' ? 'bg-yellow-500/20 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+        }`}
+      >
+        <Users size={20} /> <span>User Management</span>
+      </button>
+      <button 
+        onClick={() => setActiveSection('withdrawals')} 
+        className={`w-full text-left flex items-center space-x-3 p-3 rounded-lg transition-colors ${
+          activeSection === 'withdrawals' ? 'bg-yellow-500/20 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+        }`}
+      >
+        <CreditCard size={20} /> <span>Withdrawals</span>
+      </button>
+      <button 
+        onClick={() => setActiveSection('game-control')} 
+        className={`w-full text-left flex items-center space-x-3 p-3 rounded-lg transition-colors ${
+          activeSection === 'game-control' ? 'bg-yellow-500/20 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+        }`}
+      >
+        <Settings size={20} /> <span>Game Control</span>
+      </button>
+    </nav>
+  </div>
+);
 
 export default function Admin() {
   const [activeSection, setActiveSection] = useState("users");
-  const { toast } = useToast();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["/api/admin/users"],
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({ 
+    queryKey: ["/api/admin/users"], 
+    queryFn: () => api.get("/api/admin/users").then(res => res.data) 
   });
 
-  const { data: pendingWithdrawals = [] } = useQuery<Withdrawal[]>({
-    queryKey: ["/api/admin/withdrawals/pending"],
+  const { data: pendingWithdrawals = [], isLoading: withdrawalsLoading } = useQuery<Withdrawal[]>({ 
+    queryKey: ["/api/admin/withdrawals/pending"], 
+    queryFn: () => api.get("/api/admin/withdrawals/pending").then(res => res.data) 
   });
 
-  const { data: gameSettings } = useQuery<GameSettings>({
-    queryKey: ["/api/admin/settings/game"],
+  const { data: gameSettings, isLoading: gameSettingsLoading } = useQuery<GameSettings>({ 
+    queryKey: ["/api/admin/settings/game"], 
+    queryFn: () => api.get("/api/admin/settings/game").then(res => res.data) 
   });
 
-  const approveWithdrawalMutation = useMutation({
-    mutationFn: async (withdrawalId: string) => {
-      const response = await apiRequest("POST", `/api/admin/withdrawals/${withdrawalId}/approve`);
-      return response.json();
-    },
+  const withdrawalMutation = useMutation({
+    mutationFn: ({ id, approve }: { id: string, approve: boolean }) => 
+      api.post(`/api/admin/withdrawals/${id}/status`, { approve }),
     onSuccess: () => {
-      toast({
-        title: "Withdrawal approved",
-        description: "The withdrawal has been processed successfully",
-      });
+      toast.success("Withdrawal status updated!");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/withdrawals/pending"] });
     },
-  });
-
-  const rejectWithdrawalMutation = useMutation({
-    mutationFn: async (withdrawalId: string) => {
-      const response = await apiRequest("POST", `/api/admin/withdrawals/${withdrawalId}/reject`);
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Withdrawal rejected",
-        description: "The withdrawal has been rejected",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/withdrawals/pending"] });
-    },
+    onError: (err: Error) => toast.error(`Error: ${err.message}`)
   });
 
   const banUserMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const response = await apiRequest("POST", `/api/admin/users/${userId}/ban`);
-      return response.json();
-    },
+    mutationFn: (userId: string) => api.post(`/api/admin/users/${userId}/ban`),
     onSuccess: () => {
-      toast({
-        title: "User banned",
-        description: "The user has been banned successfully",
-      });
+      toast.success("User ban status updated!");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
+    onError: (err: Error) => toast.error(`Error: ${err.message}`)
   });
 
-  const renderUsers = () => (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">User Management</h1>
-        <p className="text-gray-400">Manage user accounts and activities</p>
-      </div>
+  const updateGameSettingsMutation = useMutation({
+    mutationFn: (settings: Partial<GameSettings>) => api.put("/api/admin/settings/game", settings),
+    onSuccess: () => {
+      toast.success("Game settings updated!");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings/game"] });
+    },
+    onError: (err: Error) => toast.error(`Error: ${err.message}`)
+  });
 
-      {/* User Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-gray-800 p-6 rounded-2xl">
-          <div className="text-3xl font-bold text-gold mb-2">{users.length}</div>
-          <div className="text-gray-400 text-sm">Total Users</div>
-        </div>
-        <div className="bg-gray-800 p-6 rounded-2xl">
-          <div className="text-3xl font-bold text-emerald mb-2">
-            {users.filter((u: any) => u.status === "active").length}
-          </div>
-          <div className="text-gray-400 text-sm">Active Users</div>
-        </div>
-        <div className="bg-gray-800 p-6 rounded-2xl">
-          <div className="text-3xl font-bold text-blue-500 mb-2">
-            {users.filter((u: any) => {
-              const today = new Date().toDateString();
-              return new Date(u.createdAt).toDateString() === today;
-            }).length}
-          </div>
-          <div className="text-gray-400 text-sm">New Today</div>
-        </div>
-        <div className="bg-gray-800 p-6 rounded-2xl">
-          <div className="text-3xl font-bold text-red-500 mb-2">
-            {users.filter((u: any) => u.status === "banned").length}
-          </div>
-          <div className="text-gray-400 text-sm">Banned Users</div>
-        </div>
-      </div>
+  const handleUpdateGameSettings = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const crashPoint = parseFloat(formData.get('crashPoint') as string);
+    const multiplier = parseFloat(formData.get('multiplier') as string);
+    updateGameSettingsMutation.mutate({ crashPoint, multiplier });
+  };
 
-      {/* Users Table */}
-      <div className="bg-gray-800 rounded-2xl overflow-hidden">
-        <div className="p-6 border-b border-gray-700">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-medium">User List</h3>
-            <div className="flex space-x-4">
-              <Input
-                type="text"
-                placeholder="Search users..."
-                className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
-              />
-              <Select>
-                <SelectTrigger className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-xl text-white">
-                  <SelectValue placeholder="Filter status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="banned">Banned</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-700">
+  const renderUsers = () => {
+    if (usersLoading) return <div className="p-6 text-center">Loading Users...</div>;
+    return (
+      <div className="p-6">
+        <h2 className="text-3xl font-bold mb-4 text-white">User Management</h2>
+        <div className="overflow-x-auto bg-gray-800/50 rounded-lg">
+          <table className="min-w-full text-left">
+            <thead className="border-b border-gray-700">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">User</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Email</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Balance</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Status</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Joined</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Actions</th>
+                <th className="p-4">Username</th>
+                <th className="p-4">Email</th>
+                <th className="p-4">Balance</th>
+                <th className="p-4">Status</th>
+                <th className="p-4">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700">
-              {users.map((user: any) => (
-                <tr key={user.id}>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gold rounded-full flex items-center justify-center text-black font-bold">
-                        {user.username.charAt(0).toUpperCase()}
-                      </div>
-                      <span>{user.username}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{user.email}</td>
-                  <td className="px-6 py-4 text-sm">${user.balance?.toFixed(2) || "0.00"}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      user.status === "active" ? "bg-emerald/20 text-emerald" : 
-                      user.status === "banned" ? "bg-red-500/20 text-red-500" :
-                      "bg-gray-500/20 text-gray-500"
+            <tbody>
+              {users.map(user => (
+                <tr key={user.id} className="border-b border-gray-800 hover:bg-gray-700/50">
+                  <td className="p-4">{user.username}</td>
+                  <td className="p-4">{user.email}</td>
+                  <td className="p-4">${user.balance.toFixed(2)}</td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      user.isBanned ? 'bg-red-500/50' : 'bg-green-500/50'
                     }`}>
-                      {user.status}
+                      {user.isBanned ? 'Banned' : 'Active'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-400">
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex space-x-2">
-                      <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs transition-all duration-300">
-                        View
-                      </Button>
-                      {user.status !== "banned" && (
-                        <Button 
-                          size="sm" 
-                          onClick={() => banUserMutation.mutate(user.id)}
-                          disabled={banUserMutation.isPending}
-                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-xs transition-all duration-300"
-                        >
-                          Ban
-                        </Button>
-                      )}
-                    </div>
+                  <td className="p-4">
+                    <button 
+                      onClick={() => banUserMutation.mutate(user.id)} 
+                      className="p-2 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed" 
+                      disabled={user.isBanned}
+                    >
+                      <Ban size={16} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -216,85 +167,56 @@ export default function Admin() {
           </table>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderFinance = () => (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Financial Management</h1>
-        <p className="text-gray-400">Monitor transactions and approve withdrawals</p>
-      </div>
-
-      {/* Financial Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-gray-800 p-6 rounded-2xl">
-          <div className="text-3xl font-bold text-emerald mb-2">$45,678</div>
-          <div className="text-gray-400 text-sm">Total Deposits</div>
-        </div>
-        <div className="bg-gray-800 p-6 rounded-2xl">
-          <div className="text-3xl font-bold text-red-500 mb-2">$23,456</div>
-          <div className="text-gray-400 text-sm">Total Withdrawals</div>
-        </div>
-        <div className="bg-gray-800 p-6 rounded-2xl">
-          <div className="text-3xl font-bold text-gold mb-2">$22,222</div>
-          <div className="text-gray-400 text-sm">Net Profit</div>
-        </div>
-        <div className="bg-gray-800 p-6 rounded-2xl">
-          <div className="text-3xl font-bold text-blue-500 mb-2">{pendingWithdrawals.length}</div>
-          <div className="text-gray-400 text-sm">Pending Withdrawals</div>
-        </div>
-      </div>
-
-      {/* Pending Transactions */}
-      <div className="bg-gray-800 rounded-2xl overflow-hidden">
-        <div className="p-6 border-b border-gray-700">
-          <h3 className="text-xl font-medium">Pending Withdrawals</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-700">
+  const renderWithdrawals = () => {
+    if (withdrawalsLoading) return <div className="p-6 text-center">Loading Withdrawals...</div>;
+    return (
+      <div className="p-6">
+        <h2 className="text-3xl font-bold mb-4 text-white">Withdrawal Requests</h2>
+        <div className="overflow-x-auto bg-gray-800/50 rounded-lg">
+          <table className="min-w-full text-left">
+            <thead className="border-b border-gray-700">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">User</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Amount</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Method</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Requested</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Actions</th>
+                <th className="p-4">User</th>
+                <th className="p-4">Amount</th>
+                <th className="p-4">Wallet</th>
+                <th className="p-4">Status</th>
+                <th className="p-4">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700">
-              {pendingWithdrawals.map((withdrawal: any) => (
-                <tr key={withdrawal.id}>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gold rounded-full flex items-center justify-center text-black font-bold text-sm">
-                        {withdrawal.user.username.charAt(0).toUpperCase()}
-                      </div>
-                      <span>{withdrawal.user.username}</span>
-                    </div>
+            <tbody>
+              {pendingWithdrawals.map(withdrawal => (
+                <tr key={withdrawal.id} className="border-b border-gray-800 hover:bg-gray-700/50">
+                  <td className="p-4">{withdrawal.user.username}</td>
+                  <td className="p-4">${withdrawal.amount.toFixed(2)}</td>
+                  <td className="p-4 text-sm text-gray-400">{withdrawal.walletAddress.slice(0, 6)}...{withdrawal.walletAddress.slice(-4)}</td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      withdrawal.status === 'APPROVED' ? 'bg-green-500/50' : 
+                      withdrawal.status === 'REJECTED' ? 'bg-red-500/50' : 'bg-yellow-500/50'
+                    }`}>
+                      {withdrawal.status}
+                    </span>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium">${withdrawal.amount.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{withdrawal.method}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{withdrawal.timeAgo}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        onClick={() => approveWithdrawalMutation.mutate(withdrawal.id)}
-                        disabled={approveWithdrawalMutation.isPending}
-                        className="bg-emerald hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300"
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => rejectWithdrawalMutation.mutate(withdrawal.id)}
-                        disabled={rejectWithdrawalMutation.isPending}
-                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300"
-                      >
-                        Reject
-                      </Button>
-                    </div>
+                  <td className="p-4 space-x-2">
+                    {withdrawal.status === 'PENDING' && (
+                      <>
+                        <button 
+                          onClick={() => withdrawalMutation.mutate({ id: withdrawal.id, approve: true })}
+                          className="p-2 rounded-full bg-green-600 hover:bg-green-700"
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button 
+                          onClick={() => withdrawalMutation.mutate({ id: withdrawal.id, approve: false })}
+                          className="p-2 rounded-full bg-red-600 hover:bg-red-700"
+                        >
+                          <X size={16} />
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -302,133 +224,74 @@ export default function Admin() {
           </table>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderGameControl = () => (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Game Control Settings</h1>
-        <p className="text-gray-400">Configure game parameters and bonuses</p>
+  const renderGameControl = () => {
+    if (gameSettingsLoading) return <div className="p-6 text-center">Loading Game Settings...</div>;
+    return (
+      <div className="p-6">
+        <h2 className="text-3xl font-bold mb-4 text-white">Game Control</h2>
+        <form onSubmit={handleUpdateGameSettings} className="bg-gray-800/50 rounded-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Crash Point</label>
+              <input
+                name="crashPoint"
+                type="number"
+                step="0.01"
+                defaultValue={gameSettings?.crashPoint}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Multiplier</label>
+              <input
+                name="multiplier"
+                type="number"
+                step="0.01"
+                defaultValue={gameSettings?.multiplier}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+          </div>
+          <div className="mt-6">
+            <button 
+              type="submit" 
+              className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+              Save Settings
+            </button>
+          </div>
+        </form>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* RTP Settings */}
-        <div className="bg-gray-800 p-6 rounded-2xl">
-          <h3 className="text-xl font-medium mb-6">RTP Settings</h3>
-          <form className="space-y-4">
-            <div>
-              <Label className="block text-sm font-medium text-gray-300 mb-2">Aviator RTP (%)</Label>
-              <Input
-                type="number"
-                defaultValue={gameSettings?.aviatorRtp || 97}
-                min="90"
-                max="99"
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent transition-all duration-300"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium text-gray-300 mb-2">Max Multiplier</Label>
-              <Input
-                type="number"
-                defaultValue={gameSettings?.maxMultiplier || 1000}
-                min="10"
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent transition-all duration-300"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium text-gray-300 mb-2">Min Bet (USD)</Label>
-              <Input
-                type="number"
-                defaultValue={gameSettings?.minBet || 1}
-                min="0.1"
-                step="0.1"
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent transition-all duration-300"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium text-gray-300 mb-2">Max Bet (USD)</Label>
-              <Input
-                type="number"
-                defaultValue={gameSettings?.maxBet || 1000}
-                min="1"
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent transition-all duration-300"
-              />
-            </div>
-            <Button type="submit" className="w-full rounded-2xl bg-gold hover:bg-emerald text-black font-bold px-6 py-3 shadow-md transition-all duration-300">
-              Update Settings
-            </Button>
-          </form>
-        </div>
-
-        {/* Referral Settings */}
-        <div className="bg-gray-800 p-6 rounded-2xl">
-          <h3 className="text-xl font-medium mb-6">Referral Bonuses</h3>
-          <form className="space-y-4">
-            <div>
-              <Label className="block text-sm font-medium text-gray-300 mb-2">Referrer Bonus (%)</Label>
-              <Input
-                type="number"
-                defaultValue={gameSettings?.referrerBonus || 10}
-                min="1"
-                max="50"
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent transition-all duration-300"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium text-gray-300 mb-2">Referee Bonus (USD)</Label>
-              <Input
-                type="number"
-                defaultValue={gameSettings?.refereeBonus || 20}
-                min="1"
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent transition-all duration-300"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium text-gray-300 mb-2">Min Deposit for Bonus (USD)</Label>
-              <Input
-                type="number"
-                defaultValue={gameSettings?.minDepositForBonus || 50}
-                min="1"
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent transition-all duration-300"
-              />
-            </div>
-            <div className="flex items-center space-x-3">
-              <Checkbox
-                id="referral-active"
-                defaultChecked={gameSettings?.referralActive || true}
-              />
-              <Label htmlFor="referral-active" className="text-sm text-gray-300">
-                Referral Program Active
-              </Label>
-            </div>
-            <Button type="submit" className="w-full rounded-2xl bg-gold hover:bg-emerald text-black font-bold px-6 py-3 shadow-md transition-all duration-300">
-              Update Bonuses
-            </Button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderContent = () => {
-    switch (activeSection) {
-      case "users":
-        return renderUsers();
-      case "finance":
-        return renderFinance();
-      case "game-control":
-        return renderGameControl();
-      default:
-        return renderUsers();
-    }
+    );
   };
 
   return (
-    <div className="flex h-screen bg-black">
-      <AdminSidebar activeSection={activeSection} setActiveSection={setActiveSection} />
-      <div className="flex-1 p-8 overflow-y-auto">
-        {renderContent()}
+    <div className="min-h-screen bg-gray-900 text-gray-100">
+      {/* Sidebar */}
+      <div className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 lg:translate-x-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <AdminSidebar activeSection={activeSection} setActiveSection={setActiveSection} />
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col lg:ml-64">
+        {/* Mobile Header */}
+        <header className="lg:hidden sticky top-0 bg-gray-800/80 backdrop-blur-md z-20 flex items-center justify-between p-4 border-b border-gray-700">
+          <h1 className="text-xl font-bold text-yellow-500">Admin Panel</h1>
+          <button onClick={toggleSidebar} className="text-white">
+            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </header>
+
+        <main className="flex-1 overflow-y-auto">
+          {activeSection === "users" && renderUsers()}
+          {activeSection === "withdrawals" && renderWithdrawals()}
+          {activeSection === "game-control" && renderGameControl()}
+        </main>
       </div>
     </div>
   );

@@ -191,10 +191,7 @@ export default function Withdraw() {
   const maxWithdraw = Math.floor(userProfile?.balance || 0);
 
   const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-  if (!stripeKey) {
-    throw new Error('Stripe public key is not defined!');
-  }
-  const stripePromise = loadStripe(stripeKey);
+  const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
