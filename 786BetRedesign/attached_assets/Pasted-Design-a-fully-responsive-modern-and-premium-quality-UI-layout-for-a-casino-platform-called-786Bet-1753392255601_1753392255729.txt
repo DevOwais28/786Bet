@@ -1,0 +1,85 @@
+Design a fully responsive, modern, and premium-quality UI layout for a casino platform called 786Bet.casino, built using React + Vite + Tailwind CSS.
+
+✨ Take design inspiration from Mural.co — clean modular layout blocks, generous padding, breathable white space, and visually aligned headline hierarchies.
+
+🔧 Key requirements:
+
+Sticky Header with logo and nav links: Home, Play, Deposit, Withdraw, Admin
+
+Hero Section: Left-aligned big headline, subtext, CTA button, and right-side casino-themed image
+
+Features Section: 3-column grid with icons and short blurbs
+
+How It Works: Step-by-step section with visual icons
+
+Testimonials / Stats / FAQs: Flexible layout, styled elegantly
+
+Footer: Clean grid with links and company info
+
+📄 Additional Pages:
+
+Login / Register: Centered form layout with blurred or themed background, optional Google login
+
+Dashboard (User):
+
+Sidebar navigation
+
+Main panel with Wallet, Deposit, Withdraw, Game History
+
+Referral code section and Live balance widget
+
+Game Room (Aviator):
+
+Center: Live game multiplier and crash chart
+
+Left: Optional real-time chat
+
+Right: Bet panel with amount/input controls
+
+Admin Panel:
+
+Sidebar nav: Users, Finance, Game Control
+
+Sortable user table
+
+Transaction approval interface
+
+Settings page for RTP%, referral bonuses
+
+🖋️ Typography:
+
+Use Inter font across the site
+
+Headings: text-4xl font-bold, section titles text-xl font-medium, body text-base
+
+Loose spacing: leading-relaxed, tracking-wide
+
+🎨 Tailwind Theme Colors (to be added via tailwind.config.js):
+
+js
+Copy
+Edit
+theme: {
+  extend: {
+    colors: {
+      gold: '#FFD700',
+      black: '#0C0C0C',
+      emerald: '#047857',
+      alertRed: '#B91C1C',
+      white: '#FFFFFF',
+    }
+  }
+}
+🧩 Layout & Style Notes:
+
+Use Tailwind Grid and Flexbox for all layout structures
+
+Mobile-first responsive design (sm, md, lg, xl)
+
+Buttons:
+
+rounded-2xl bg-gold hover:bg-emerald text-black font-bold px-6 py-3 shadow-md transition-all duration-300
+
+Add animations for game interactions (e.g., multiplier graph)
+
+Maintain a sleek, premium, and functional visual experience
